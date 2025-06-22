@@ -6,6 +6,7 @@ from mcp.client.stdio import stdio_client
 
 from langchain_openai import ChatOpenAI
 from langchain_mcp_adapters.tools import load_mcp_tools
+from langchain_core.messages import HumanMessage
 from langgraph.prebuilt import create_react_agent
 
 # Create server parameters for stdio connection
@@ -34,11 +35,18 @@ async def main():
             response = await tool.ainvoke(input={"date_str": "2025-06-17"})
 
             llm = ChatOpenAI(
-                model_name="deepseek/deepseek-r1-0528:free",
+                model_name="google/gemini-2.5-flash-lite-preview-06-17",
                 openai_api_base="https://openrouter.ai/api/v1",
                 openai_api_key=os.environ.get("OPENROUTER_API_KEY")
             )
             agent = create_react_agent(llm, tools)
+
+            inputs = {"messages": [HumanMessage(content="What is the full text of the puzzle? Use the tool you have available to answer that question.")]}
+
+            print("--- Streaming Agent Steps ---")
+            async for s in agent.astream(inputs):
+                print(s)
+                print("----------------")
 
 # Run the asynchronous main function
 if __name__ == "__main__":
