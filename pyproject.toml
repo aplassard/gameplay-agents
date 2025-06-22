@@ -10,4 +10,5 @@ dependencies = [
     "langchain-openai>=0.3.24",
     "langchain[openai]>=0.3.26",
     "langgraph>=0.4.8",
+    "langmem>=0.0.27",
 ]

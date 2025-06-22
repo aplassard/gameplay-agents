@@ -9,6 +9,17 @@ from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain_core.messages import HumanMessage
 from langgraph.prebuilt import create_react_agent
 
+from typing import Any
+
+load_dotenv()
+
+llm = ChatOpenAI(
+                model_name="deepseek/deepseek-chat-v3-0324:free",
+                openai_api_base="https://openrouter.ai/api/v1",
+                openai_api_key=os.environ.get("OPENROUTER_API_KEY")
+            )
+
+
 # Create server parameters for stdio connection
 server_params = StdioServerParameters(
     command="uvx",
@@ -19,7 +30,6 @@ server_params = StdioServerParameters(
     ]
 )
 
-load_dotenv()
 
 def load_prompt(file_path: str = './basic_prompt.md') -> str | None:
     """
@@ -57,19 +67,18 @@ async def main():
             tools = await load_mcp_tools(session)
             tool = [t for t in tools if t.name == "load_puzzle"][0]
             
-            response = await tool.ainvoke(input={"date_str": "2025-06-17"})
+            response = await tool.ainvoke(input={"date_str": "2025-06-15"})
 
-            llm = ChatOpenAI(
-                model_name="deepseek/deepseek-chat-v3-0324:free",
-                openai_api_base="https://openrouter.ai/api/v1",
-                openai_api_key=os.environ.get("OPENROUTER_API_KEY")
-            )
-            agent = create_react_agent(llm, tools)
+            
+            checkpointer = InMemorySaver()
+            agent = create_react_agent(llm, 
+                                       tools
+                                    )
 
             inputs = {"messages": [HumanMessage(content=prompt)]}
 
             print("--- Streaming Agent Steps ---")
-            async for s in agent.astream(inputs):
+            async for s in agent.astream(inputs, config={"recursion_limit": 100}):
                 print(s)
                 print("----------------")
 
