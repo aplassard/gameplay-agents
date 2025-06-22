@@ -1,7 +1,10 @@
 import asyncio
+import os
+from dotenv import load_dotenv
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+from langchain_openai import ChatOpenAI
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.prebuilt import create_react_agent
 
@@ -15,6 +18,8 @@ server_params = StdioServerParameters(
     ]
 )
 
+load_dotenv()
+
 # Define an asynchronous main function
 async def main():
     async with stdio_client(server_params) as (read, write):
@@ -24,14 +29,16 @@ async def main():
 
             # Get tools
             tools = await load_mcp_tools(session)
-            print(f"Tools: {tools}")
-
-            [print(tool.name) for tool in tools]
-            
             tool = [t for t in tools if t.name == "load_puzzle"][0]
-            print(f"Tool: {tool}")
+            
             response = await tool.ainvoke(input={"date_str": "2025-06-17"})
-            print(f"Response: {response}")
+
+            llm = ChatOpenAI(
+                model_name="deepseek/deepseek-r1-0528:free",
+                openai_api_base="https://openrouter.ai/api/v1",
+                openai_api_key=os.environ.get("OPENROUTER_API_KEY")
+            )
+            agent = create_react_agent(llm, tools)
 
 # Run the asynchronous main function
 if __name__ == "__main__":
