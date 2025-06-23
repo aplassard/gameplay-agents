@@ -8,6 +8,11 @@ from langchain_openai import ChatOpenAI
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain_core.messages import HumanMessage
 from langgraph.prebuilt import create_react_agent
+from langgraph.checkpoint.memory import InMemorySaver
+
+from langchain.globals import set_verbose, set_debug
+#set_verbose(True)
+#set_debug(True)
 
 from typing import Any
 
@@ -67,18 +72,18 @@ async def main():
             tools = await load_mcp_tools(session)
             tool = [t for t in tools if t.name == "load_puzzle"][0]
             
-            response = await tool.ainvoke(input={"date_str": "2025-06-15"})
+            response = await tool.ainvoke(input={"date_str": "2025-06-08"})
 
             
             checkpointer = InMemorySaver()
             agent = create_react_agent(llm, 
-                                       tools
-                                    )
+                                       tools,
+                                       checkpointer=checkpointer,)
 
             inputs = {"messages": [HumanMessage(content=prompt)]}
 
             print("--- Streaming Agent Steps ---")
-            async for s in agent.astream(inputs, config={"recursion_limit": 100}):
+            async for s in agent.astream(inputs, config={"recursion_limit": 200, "configurable": {"thread_id": "1"}}):
                 print(s)
                 print("----------------")
 
