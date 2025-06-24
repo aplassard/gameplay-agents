@@ -2,6 +2,7 @@ from typing_extensions import TypedDict
 from bracket_city_mcp.game.game import Game
 from bracket_city_mcp.puzzle_loader import load_game_data_by_date
 
+import logging
 from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
@@ -12,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 llm = ChatOpenAI(
-                model_name="openai/gpt-4.1-nano",
+                model_name="openai/gpt-4.1",
                 openai_api_base="https://openrouter.ai/api/v1",
                 openai_api_key=os.environ.get("OPENROUTER_API_KEY")
             )
@@ -61,19 +62,22 @@ def build_llm_message(game: Game) -> str:
     return output
 
 def pre_hook_node(state: State):
-    print(state)
-    print(f"Of the {len(state["game"].clues)} clues, {len(list(filter(lambda x: x.completed, state["game"].clues.values())))} are completed")
+    # The full state dump can be very verbose, consider logging specific parts if needed
+    # logging.debug(f"Current state: {state}")
+    logging.info(f"Steps: {state['step_count']}, Clues Answered: {len(list(filter(lambda x: x.completed, state['game'].clues.values())))}, Total Clues: {len(state['game'].clues)}")
     if state["step_count"] == state["max_steps"]:
         return {"game_over": True, "game_won": False}
     elif state["game"].is_complete:
         return {"game_over": True, "game_won": True}
     else:
         llm_message = build_llm_message(state["game"])
+        logging.debug(f"Generated prompt for LLM: {llm_message}")
         return {"llm_message": llm_message, "llm_response": "", "game_over": False, "game_won": False}
     
 def call_llm_node(state: State):
+    logging.debug(f"Calling LLM with message: {state['llm_message']}")
     response = llm.invoke([HumanMessage(state["llm_message"])])
-    print(f"LLM Response: {response.content}")
+    logging.debug(f"LLM Response: {response.content}")
     return {"llm_response": response.content}
 
 def parse_llm_response(llm_response: str):
@@ -95,8 +99,28 @@ def parse_llm_response(llm_response: str):
 
 def answer_clue_node(state: State):
     clue_id, answer = parse_llm_response(state["llm_response"])
-    print(f"Answering clue {clue_id} with answer {answer}")
-    state["game"].answer_clue(clue_id, answer)
+    # Log before answering, in case answer_clue raises an error
+    logging.debug(f"Attempting to answer clue_id: {clue_id} with answer: {answer}")
+
+    if clue_id is None or answer is None:
+        logging.warning(f"Could not parse clue_id or answer from LLM response: {state['llm_response']}. Skipping answer attempt.")
+        # Potentially increment step_count here or handle as an error state depending on desired game logic
+        return {"step_count": state["step_count"] + 1, "llm_message": None, "llm_response": None}
+
+    game_instance = state["game"]
+    clue_before_answer = game_instance.clues.get(clue_id)
+
+    if not clue_before_answer:
+        logging.error(f"Clue with id {clue_id} not found in game state. LLM hallucinated a clue_id.")
+        # Potentially increment step_count here or handle as an error state
+        return {"step_count": state["step_count"] + 1, "llm_message": None, "llm_response": None}
+
+    game_instance.answer_clue(clue_id, answer)
+
+    clue_after_answer = game_instance.clues.get(clue_id)
+    is_correct = clue_after_answer.completed if clue_after_answer else None # Should always exist if no error before
+
+    logging.debug(f"Answered clue_id: {clue_id} with answer: {answer}. Correct: {is_correct}")
     return {"step_count": state["step_count"] + 1,  "llm_message": None, "llm_response": None}
 
 # --- Conditional Edge Logic ---
