@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 llm = ChatOpenAI(
-                model_name="deepseek/deepseek-r1-0528:free",
+                model_name="mistralai/mistral-small-3.2-24b-instruct:free",
                 openai_api_base="https://openrouter.ai/api/v1",
                 openai_api_key=os.environ.get("OPENROUTER_API_KEY")
             )
@@ -62,13 +62,13 @@ def build_llm_message(game: Game) -> str:
 
 def pre_hook_node(state: State):
     print(state)
+    print(f"Of the {len(state["game"].clues)} clues, {len(list(filter(lambda x: x.completed, state["game"].clues.values())))} are completed")
     if state["step_count"] == state["max_steps"]:
         return {"game_over": True, "game_won": False}
     elif state["game"].is_complete:
         return {"game_over": True, "game_won": True}
     else:
         llm_message = build_llm_message(state["game"])
-        print(f"LLM Message: {llm_message}")
         return {"llm_message": llm_message, "llm_response": "", "game_over": False, "game_won": False}
     
 def call_llm_node(state: State):
@@ -143,7 +143,7 @@ app = workflow.compile()
 
 if __name__ == "__main__":
     # Load the game data for a specific date
-    date_str = "2025-06-15"
+    date_str = "2025-06-07"
     game = Game(load_game_data_by_date(date_str))
 
     initial_state = {
