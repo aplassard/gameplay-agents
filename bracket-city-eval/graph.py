@@ -82,15 +82,28 @@ def parse_llm_response(llm_response: str):
     The response should be structured as:
     clue_id: [your_clue_id]
     answer: [your_answer]
+
+    Handles cases with optional leading/trailing whitespace and markdown.
     """
-    lines = llm_response.split("\n")
+    import re
+
+    clue_id_match = re.search(r"clue_id:\s*(.*)", llm_response, re.IGNORECASE)
+    answer_match = re.search(r"answer:\s*(.*)", llm_response, re.IGNORECASE)
+
     clue_id = None
     answer = None
-    for line in lines:
-        if line.startswith("clue_id:"):
-            clue_id = line.split(":")[1].strip()
-        elif line.startswith("answer:"):
-            answer = line.split(":")[1].strip()
+
+    if clue_id_match:
+        clue_id = clue_id_match.group(1).strip().replace("*", "")
+    if answer_match:
+        answer = answer_match.group(1).strip().replace("*", "")
+        # Handle cases where the answer might be the last word on the line
+        # and could be followed by other text if not parsed carefully.
+        # For now, we assume 'answer:' is followed by the answer and then EOL or whitespace.
+        # If the answer itself can contain spaces, this simple strip() is fine.
+        # If there's a possibility of "answer: my answer is here" and we only want "my answer",
+        # more complex regex would be needed, but current problem implies single word answers.
+
     return clue_id, answer
 
 def answer_clue_node(state: State):
