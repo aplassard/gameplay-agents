@@ -2,8 +2,7 @@ import logging
 import uuid
 import json
 import os
-import sys # Add sys import
-sys.path.append(os.path.join(os.path.dirname(__file__), '..')) # Add parent dir to path
+import sys
 
 from bracket_city_mcp.puzzle_loader import load_game_data_by_date
 from bracket_city_mcp.game.game import Game
