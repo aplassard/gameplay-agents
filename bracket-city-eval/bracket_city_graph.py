@@ -3,6 +3,7 @@ import argparse # Added import
 import uuid
 import json
 import os
+import time
 import sys
 
 from bracket_city_mcp.puzzle_loader import load_game_data_by_date
@@ -48,7 +49,9 @@ def main():
     with get_openai_callback() as cb:
         logging.info("Starting Bracket City Solver Graph...")
         # The graph will stream events as it runs
+        start_time = time.time()
         final_state = app.invoke(initial_state, {"recursion_limit": 1000})
+        end_time = time.time()
 
         logging.info("Graph Finished.")
         logging.info(f"Game Won: {final_state['game_won']}")
@@ -67,7 +70,9 @@ def main():
             "reasoning_token": cb.reasoning_tokens,
             "completion_tokens": cb.completion_tokens,
             "total_cost": cb.total_cost,
-            "run_id": run_id
+            "run_id": run_id,
+            "start_time": start_time,
+            "end_time": end_time
         }
 
         results_dir = "./results"
