@@ -1,5 +1,10 @@
 import logging
 import argparse # Added import
+import uuid
+import json
+import os
+import sys
+
 from bracket_city_mcp.puzzle_loader import load_game_data_by_date
 from bracket_city_mcp.game.game import Game
 from langchain_community.callbacks import get_openai_callback
@@ -28,6 +33,7 @@ def main():
 
     logging.info(f"Using model: {args.model_name}") # Log the model name
 
+    run_id = str(uuid.uuid4())
     # Load the game data for a specific date
     game = Game(load_game_data_by_date(args.date_str))
     logging.info(f"Date selected for puzzle: {args.date_str}")
@@ -49,11 +55,27 @@ def main():
         logging.debug(f"Final Game State:\n{final_state['game'].get_rendered_game_text()}")
         logging.debug(f"Token Usage: {cb}")
 
-        # The result dictionary is not explicitly printed anymore,
-        # its components are logged above or assumed to be used elsewhere.
-        # If specific components of 'result' need to be logged, they can be added here.
-        # For example:
-        # logging.debug(f"Result - Prompt Tokens: {cb.prompt_tokens}, Completion Tokens: {cb.completion_tokens}, Total Cost: {cb.total_cost}")
+        result = {
+            "game_completed": final_state["game_won"],
+            "number_of_steps": final_state["step_count"],
+            "puzzle_date": date_str,
+            "model_name": "gpt-4o", # Replace with actual model name if available dynamically
+            "prompt_tokens": cb.prompt_tokens,
+            "prompt_tokens_cached": cb.prompt_tokens_cached,
+            "reasoning_token": cb.reasoning_tokens,
+            "completion_tokens": cb.completion_tokens,
+            "total_cost": cb.total_cost,
+            "run_id": run_id
+        }
+
+        results_dir = "./results"
+        os.makedirs(results_dir, exist_ok=True)
+
+        result_filepath = os.path.join(results_dir, f"{run_id}.json")
+        with open(result_filepath, 'w') as f:
+            json.dump(result, f, indent=4)
+
+        logging.info(f"Results saved to {result_filepath}")
 
 if __name__ == "__main__":
     main()
