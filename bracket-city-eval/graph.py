@@ -140,24 +140,3 @@ workflow.add_edge("answer_clue", "pre_hook")
 
 # 6. Compile the graph
 app = workflow.compile()
-
-if __name__ == "__main__":
-    # Load the game data for a specific date
-    date_str = "2025-06-07"
-    game = Game(load_game_data_by_date(date_str))
-
-    initial_state = {
-        "game": game,
-        "step_count": 0,
-        "max_steps": 50, # Set a limit to prevent infinite loops
-    }
-
-    print("Starting Bracket City Solver Graph...")
-    # The graph will stream events as it runs
-    final_state = app.invoke(initial_state, {"recursion_limit": 1000})
-
-    print("\n--- Graph Finished ---")
-    print(f"Game Won: {final_state['game_won']}")
-    print(f"Final Score (Steps Taken): {final_state['step_count']}")
-    print("Final Game State:")
-    print(final_state['game'].get_rendered_game_text())
