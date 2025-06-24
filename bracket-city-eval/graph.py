@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 llm = ChatOpenAI(
-                model_name="openai/gpt-4.1-nano",
+                model_name="openai/gpt-4.1",
                 openai_api_base="https://openrouter.ai/api/v1",
                 openai_api_key=os.environ.get("OPENROUTER_API_KEY")
             )
@@ -118,7 +118,7 @@ def answer_clue_node(state: State):
     game_instance.answer_clue(clue_id, answer)
 
     clue_after_answer = game_instance.clues.get(clue_id)
-    is_correct = clue_after_answer.completed_correctly if clue_after_answer else None # Should always exist if no error before
+    is_correct = clue_after_answer.completed if clue_after_answer else None # Should always exist if no error before
 
     logging.debug(f"Answered clue_id: {clue_id} with answer: {answer}. Correct: {is_correct}")
     return {"step_count": state["step_count"] + 1,  "llm_message": None, "llm_response": None}
