@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 llm = ChatOpenAI(
-                model_name="mistralai/mistral-small-3.2-24b-instruct:free",
+                model_name="openai/gpt-4.1-nano",
                 openai_api_base="https://openrouter.ai/api/v1",
                 openai_api_key=os.environ.get("OPENROUTER_API_KEY")
             )

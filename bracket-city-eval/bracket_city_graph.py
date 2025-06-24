@@ -29,5 +29,16 @@ def main():
         print("\n--- Token Usage ---")
         print(cb)
 
+        result = {"game_completed": final_state["game_won"], 
+                  "number_of_steps": final_state["step_count"], 
+                  "puzzle_date": date_str,
+                  "prompt_tokens": cb.prompt_tokens,
+                  "prompt_tokens_cached": cb.prompt_tokens_cached,
+                  "reasoning_token": cb.reasoning_tokens,
+                  "completion_tokens": cb.completion_tokens,
+                  "total_cost": cb.total_cost
+                  }
+        print(result)
+
 if __name__ == "__main__":
     main()
