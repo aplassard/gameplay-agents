@@ -12,11 +12,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-llm = ChatOpenAI(
-                model_name="openai/gpt-4.1-nano",
-                openai_api_base="https://openrouter.ai/api/v1",
-                openai_api_key=os.environ.get("OPENROUTER_API_KEY")
-            )
+# llm will be initialized dynamically in call_llm_node
+# llm = ChatOpenAI(
+#                 model_name="openai/gpt-4.1-nano", # This will be dynamic
+#                 openai_api_base="https://openrouter.ai/api/v1",
+#                 openai_api_key=os.environ.get("OPENROUTER_API_KEY")
+#             )
 
 class State(TypedDict):
     game: Game
@@ -26,6 +27,7 @@ class State(TypedDict):
     max_steps: int
     game_over: bool
     game_won: bool
+    model_name: str # Added model_name to state
 
 game_instructions = """
 You are an expert at the bracket city game tasked with solving a puzzle that is provided to you. 
@@ -76,6 +78,12 @@ def pre_hook_node(state: State):
     
 def call_llm_node(state: State):
     logging.debug(f"Calling LLM with message: {state['llm_message']}")
+    # Initialize LLM dynamically with model_name from state
+    llm = ChatOpenAI(
+        model_name=state["model_name"],
+        openai_api_base="https://openrouter.ai/api/v1", # Assuming this remains constant
+        openai_api_key=os.environ.get("OPENROUTER_API_KEY") # Assuming this remains constant
+    )
     response = llm.invoke([HumanMessage(state["llm_message"])])
     logging.debug(f"LLM Response: {response.content}")
     return {"llm_response": response.content}

@@ -42,6 +42,7 @@ def main():
         "game": game,
         "step_count": 0,
         "max_steps": args.num_steps, # Use parsed num_steps
+        "model_name": args.model_name, # Pass model_name to the graph
     }
 
     with get_openai_callback() as cb:
@@ -58,8 +59,9 @@ def main():
         result = {
             "game_completed": final_state["game_won"],
             "number_of_steps": final_state["step_count"],
-            "puzzle_date": args.date_str,
             "model_name": "gpt-4o", # Replace with actual model name if available dynamically
+            "puzzle_date": args.date_str, # Use args.date_str
+            "model_name": args.model_name, # Use args.model_name
             "prompt_tokens": cb.prompt_tokens,
             "prompt_tokens_cached": cb.prompt_tokens_cached,
             "reasoning_token": cb.reasoning_tokens,
