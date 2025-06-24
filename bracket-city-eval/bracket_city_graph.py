@@ -24,7 +24,7 @@ def main():
     initial_state = {
         "game": game,
         "step_count": 0,
-        "max_steps": 50, # Set a limit to prevent infinite loops
+        "max_steps": 10, # Set a limit to prevent infinite loops
     }
 
     with get_openai_callback() as cb:
@@ -45,13 +45,13 @@ def main():
             "model_name": "gpt-4o", # Replace with actual model name if available dynamically
             "prompt_tokens": cb.prompt_tokens,
             "prompt_tokens_cached": cb.prompt_tokens_cached,
-            "reasoning_token": cb.completion_tokens, # Assuming reasoning_token is completion_tokens based on typical usage
+            "reasoning_token": cb.reasoning_tokens,
             "completion_tokens": cb.completion_tokens,
             "total_cost": cb.total_cost,
             "run_id": run_id
         }
 
-        results_dir = "bracket-city-eval/results"
+        results_dir = "./results"
         os.makedirs(results_dir, exist_ok=True)
 
         result_filepath = os.path.join(results_dir, f"{run_id}.json")
