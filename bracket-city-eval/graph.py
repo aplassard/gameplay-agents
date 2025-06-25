@@ -5,7 +5,7 @@ from bracket_city_mcp.puzzle_loader import load_game_data_by_date
 import logging
 from langgraph.graph import StateGraph, END
 # Removed ChatOpenAI, HumanMessage, os, load_dotenv as they are now in llm_utils
-from .llm_utils import call_llm_with_retry
+from llm_utils import call_llm_with_retry
 
 
 class State(TypedDict):
