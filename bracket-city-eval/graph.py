@@ -4,25 +4,15 @@ from bracket_city_mcp.puzzle_loader import load_game_data_by_date
 
 import logging
 from langgraph.graph import StateGraph, END
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage
+from llm_utils import call_llm_with_retry
 
 import os
 import uuid # Added for generating unique filenames
 from pathlib import Path # Added for path manipulation
-from dotenv import load_dotenv
 
-load_dotenv()
 
 # Ensure the parse-errors directory exists
 Path("./parse-errors").mkdir(parents=True, exist_ok=True)
-
-# llm will be initialized dynamically in call_llm_node
-# llm = ChatOpenAI(
-#                 model_name="openai/gpt-4.1-nano", # This will be dynamic
-#                 openai_api_base="https://openrouter.ai/api/v1",
-#                 openai_api_key=os.environ.get("OPENROUTER_API_KEY")
-#             )
 
 class State(TypedDict):
     game: Game
@@ -83,15 +73,25 @@ def pre_hook_node(state: State):
     
 def call_llm_node(state: State):
     logging.debug(f"Calling LLM with message: {state['llm_message']}")
-    # Initialize LLM dynamically with model_name from state
-    llm = ChatOpenAI(
-        model_name=state["model_name"],
-        openai_api_base="https://openrouter.ai/api/v1", # Assuming this remains constant
-        openai_api_key=os.environ.get("OPENROUTER_API_KEY") # Assuming this remains constant
-    )
-    response = llm.invoke([HumanMessage(state["llm_message"])])
-    logging.debug(f"LLM Response: {response.content}")
-    return {"llm_response": response.content}
+    # Use the new function from llm_utils
+    try:
+        response_content = call_llm_with_retry(
+            model_name=state["model_name"],
+            prompt_message=state["llm_message"]
+        )
+        logging.debug(f"LLM Response: {response_content}")
+        return {"llm_response": response_content}
+    except Exception as e:
+        # If retries fail, log the error and potentially set an error state or stop the graph.
+        # For now, let's log and return an empty response to avoid breaking the graph flow,
+        # but this might need more sophisticated error handling based on game requirements.
+        logging.error(f"LLM call failed after multiple retries: {e}")
+        # Consider how a persistent failure should affect the game state.
+        # For example, should it end the game, or skip the LLM turn?
+        # Returning None or an empty string for llm_response might cause issues downstream
+        # if not handled. For now, let's ensure parse_llm_response can handle it.
+        # We could also add an 'error' field to the state.
+        return {"llm_response": ""} # Or handle error state appropriately
 
 def parse_llm_response(llm_response: str):
     """
