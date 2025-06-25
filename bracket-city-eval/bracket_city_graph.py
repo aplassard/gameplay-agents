@@ -56,7 +56,6 @@ def main():
         result = {
             "game_completed": final_state["game_won"],
             "number_of_steps": final_state["step_count"],
-            "model_name": "gpt-4o", # Replace with actual model name if available dynamically
             "puzzle_date": args.date_str, # Use args.date_str
             "model_name": args.model_name, # Use args.model_name
             "prompt_tokens": cb.prompt_tokens,
