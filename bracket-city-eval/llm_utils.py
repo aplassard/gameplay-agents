@@ -32,3 +32,22 @@ def call_llm_with_retry(model_name: str, prompt_message: str) -> str:
     except Exception as e:
         logger.warning(f"LLM call failed. Error: {e}. Retrying if attempts remain...")
         raise # Reraise the exception to trigger tenacity's retry mechanism
+
+def heal_llm_output(broken_text: str, model_name: str = "openai/gpt-4.1-nano") -> str:
+    """
+    Takes malformed text and uses an LLM to correct its structure.
+    """
+    prompt = f"""
+Your task is to correct the formatting of the text provided below. NOTE: there will not always be a correct answer present. Don't try to force one if the text isn't explicit about which clue is supposed to be answered. The required output format is exactly two lines, as follows:clue_id: <clue id>
+answer: <answer text>Review the text and extract the clue_id and the answer.You MUST NOT include any extra text, conversation, explanations, or markdown formatting like ```. Only return the two lines in the specified format.Here is the text to fix:{broken_text}"""
+
+    logger.info(f"Attempting to heal LLM output with model: {model_name}...")
+    try:
+        healed_text = call_llm_with_retry(model_name, prompt)
+        logger.info("LLM healing call successful.")
+        return healed_text
+    except Exception as e:
+        logger.error(f"LLM healing call failed after retries. Error: {e}")
+        # Depending on desired behavior, could return original text or raise
+        # For now, re-raising the exception to make it visible if healing fails.
+        raise

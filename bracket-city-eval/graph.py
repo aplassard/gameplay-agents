@@ -4,7 +4,7 @@ from bracket_city_mcp.puzzle_loader import load_game_data_by_date
 
 import logging
 from langgraph.graph import StateGraph, END
-from llm_utils import call_llm_with_retry
+from llm_utils import call_llm_with_retry, heal_llm_output
 
 import os
 import uuid # Added for generating unique filenames
@@ -79,19 +79,15 @@ def call_llm_node(state: State):
             model_name=state["model_name"],
             prompt_message=state["llm_message"]
         )
-        logging.debug(f"LLM Response: {response_content}")
+        logging.debug(f"LLM Response before healing: {response_content}")
         return {"llm_response": response_content}
-    except Exception as e:
+            
+
+    except Exception as e_call:
         # If retries fail, log the error and potentially set an error state or stop the graph.
-        # For now, let's log and return an empty response to avoid breaking the graph flow,
-        # but this might need more sophisticated error handling based on game requirements.
-        logging.error(f"LLM call failed after multiple retries: {e}")
-        # Consider how a persistent failure should affect the game state.
-        # For example, should it end the game, or skip the LLM turn?
-        # Returning None or an empty string for llm_response might cause issues downstream
-        # if not handled. For now, let's ensure parse_llm_response can handle it.
-        # We could also add an 'error' field to the state.
-        return {"llm_response": ""} # Or handle error state appropriately
+        logging.error(f"LLM call failed after multiple retries: {e_call}")
+        # Return empty string to allow parse_llm_response to handle it and save error file
+        return {"llm_response": ""}
 
 def parse_llm_response(llm_response: str):
     """
@@ -105,45 +101,62 @@ def parse_llm_response(llm_response: str):
     answer = None
     for line in lines:
         if line.startswith("clue_id:"):
-            clue_id = line.split(":")[1].strip()
+            # Split only on the first colon to handle cases where clue_id might contain a colon
+            parts = line.split(":", 1)
+            if len(parts) > 1:
+                clue_id = parts[1].strip()
         elif line.startswith("answer:"):
-            answer = line.split(":")[1].strip()
+            # Split only on the first colon for the answer as well
+            parts = line.split(":", 1)
+            if len(parts) > 1:
+                answer = parts[1].strip()
 
     if clue_id is None or answer is None:
         logging.warning(f"Could not parse clue_id or answer from LLM response: {llm_response}")
+        # The parse-errors directory should be created at the top of the script.
+        # Adding a try-except here for robustness in writing the error file.
         error_filename = f"./parse-errors/{uuid.uuid4()}.txt"
-        with open(error_filename, "w") as f:
-            f.write(llm_response)
-        logging.info(f"Saved unparseable LLM response to {error_filename}")
-        return None, None
+        try:
+            with open(error_filename, "w") as f:
+                f.write(llm_response)
+            logging.info(f"Saved unparseable LLM response to {error_filename}")
+        except Exception as e_write:
+            logging.error(f"Failed to write unparseable LLM response to {error_filename}: {e_write}")
+        return None, None # Explicitly return a tuple of (None, None)
 
     return clue_id, answer
 
 def answer_clue_node(state: State):
+    # parse_llm_response now always returns a tuple (clue_id, answer) or (None, None)
     clue_id, answer = parse_llm_response(state["llm_response"])
-    # Log before answering, in case answer_clue raises an error
+
+    if clue_id is None or answer is None:
+        try:
+            healed_response_content = heal_llm_output(state["llm_response"])
+            logging.debug(f"LLM Response after healing: {healed_response_content}")
+            clue_id, answer = parse_llm_response(healed_response_content)
+        except Exception as e_heal:
+            logging.error(f"LLM healing failed: {e_heal}. Proceeding with unhealed response.")
+            # Fallback to unhealed response if healing fails to prevent cycle break
+
     logging.debug(f"Attempting to answer clue_id: {clue_id} with answer: {answer}")
 
     if clue_id is None or answer is None:
-        # Error message now includes the fact that the response was saved to a file
-        logging.warning(f"Could not parse clue_id or answer from LLM response. Response saved to ./parse-errors/. Skipping answer attempt.")
-        # Potentially increment step_count here or handle as an error state depending on desired game logic
+        logging.warning(f"Cannot answer clue due to parsing failure (clue_id or answer is None). Response may have been saved to ./parse-errors/.")
         return {"step_count": state["step_count"] + 1, "llm_message": None, "llm_response": None}
 
     game_instance = state["game"]
-    clue_before_answer = game_instance.clues.get(clue_id)
 
-    if not clue_before_answer:
-        logging.error(f"Clue with id {clue_id} not found in game state. LLM hallucinated a clue_id.")
-        # Potentially increment step_count here or handle as an error state
+    # Check if the clue_id from LLM is valid before trying to answer
+    if not game_instance.clues.get(clue_id):
+        logging.error(f"Clue with id '{clue_id}' not found in game state. LLM may have hallucinated a clue_id.")
         return {"step_count": state["step_count"] + 1, "llm_message": None, "llm_response": None}
 
     game_instance.answer_clue(clue_id, answer)
-
     clue_after_answer = game_instance.clues.get(clue_id)
-    is_correct = clue_after_answer.completed if clue_after_answer else None # Should always exist if no error before
-
+    is_correct = clue_after_answer.completed if clue_after_answer else False # Should exist
     logging.debug(f"Answered clue_id: {clue_id} with answer: {answer}. Correct: {is_correct}")
+
     return {"step_count": state["step_count"] + 1,  "llm_message": None, "llm_response": None}
 
 # --- Conditional Edge Logic ---
