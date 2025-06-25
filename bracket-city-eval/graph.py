@@ -119,7 +119,7 @@ def correct_llm_response(unparseable_text: str, model_name: str) -> str | None:
 clue_id: [clue_id_value]
 answer: [answer_value]
 
-However, the text is malformed. Please correct it and return ONLY the corrected text in the specified structure. Do not include any preamble or explanation.
+However, the text is malformed. Please correct it and return ONLY the corrected text in the specified structure. Do not include any preamble or explanation. Also if it is not obvious as to what the correct answer is, don't attempt to come up with an answer.
 
 Malformed text:
 ---
