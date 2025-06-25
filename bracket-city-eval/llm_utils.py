@@ -33,7 +33,7 @@ def call_llm_with_retry(model_name: str, prompt_message: str) -> str:
         logger.warning(f"LLM call failed. Error: {e}. Retrying if attempts remain...")
         raise # Reraise the exception to trigger tenacity's retry mechanism
 
-def heal_llm_output(broken_text: str, model_name: str) -> str:
+def heal_llm_output(broken_text: str, model_name: str = "openai/gpt-4.1-nano") -> str:
     """
     Takes malformed text and uses an LLM to correct its structure.
     """

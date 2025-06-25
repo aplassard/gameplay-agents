@@ -15,7 +15,7 @@ from graph import app
 # Configure logging
 # Logging configuration will be handled after argument parsing
 
-from bracket_city_eval.utils import parse_args # Import the new function
+from utils import parse_args # Import the new function
 
 def main():
     args = parse_args() # Call the new function

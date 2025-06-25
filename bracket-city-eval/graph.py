@@ -4,7 +4,7 @@ from bracket_city_mcp.puzzle_loader import load_game_data_by_date
 
 import logging
 from langgraph.graph import StateGraph, END
-from llm_utils import call_llm_with_retry, heal_llm_output # MODIFIED: Added heal_llm_output
+from llm_utils import call_llm_with_retry, heal_llm_output
 
 import os
 import uuid # Added for generating unique filenames
@@ -80,17 +80,8 @@ def call_llm_node(state: State):
             prompt_message=state["llm_message"]
         )
         logging.debug(f"LLM Response before healing: {response_content}")
-
-        # MODIFIED: Added healing step
-        try:
-            # Use the same model for healing, can be configured differently if needed
-            healed_response_content = heal_llm_output(response_content, state["model_name"])
-            logging.info(f"LLM Response after healing: {healed_response_content}")
-            return {"llm_response": healed_response_content}
-        except Exception as e_heal:
-            logging.error(f"LLM healing failed: {e_heal}. Proceeding with unhealed response.")
-            # Fallback to unhealed response if healing fails to prevent cycle break
-            return {"llm_response": response_content}
+        return {"llm_response": response_content}
+            
 
     except Exception as e_call:
         # If retries fail, log the error and potentially set an error state or stop the graph.
@@ -138,6 +129,15 @@ def parse_llm_response(llm_response: str):
 def answer_clue_node(state: State):
     # parse_llm_response now always returns a tuple (clue_id, answer) or (None, None)
     clue_id, answer = parse_llm_response(state["llm_response"])
+
+    if clue_id is None or answer is None:
+        try:
+            healed_response_content = heal_llm_output(state["llm_response"])
+            logging.debug(f"LLM Response after healing: {healed_response_content}")
+            clue_id, answer = parse_llm_response(healed_response_content)
+        except Exception as e_heal:
+            logging.error(f"LLM healing failed: {e_heal}. Proceeding with unhealed response.")
+            # Fallback to unhealed response if healing fails to prevent cycle break
 
     logging.debug(f"Attempting to answer clue_id: {clue_id} with answer: {answer}")
 
