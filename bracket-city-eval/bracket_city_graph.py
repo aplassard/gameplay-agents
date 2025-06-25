@@ -15,16 +15,10 @@ from graph import app
 # Configure logging
 # Logging configuration will be handled after argument parsing
 
-def main():
-    parser = argparse.ArgumentParser(description="Run the Bracket City Solver Graph with specified parameters.")
-    parser.add_argument("--model-name", type=str, required=True, help="Name of the model to use.")
-    parser.add_argument("--date-str", type=str, required=True, help="Date string for the puzzle data (e.g., YYYY-MM-DD).")
-    parser.add_argument("--logging-level", type=str, default="INFO",
-                        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-                        help="Logging level (default: INFO).")
-    parser.add_argument("--num_steps", type=int, default=50, help="Maximum number of steps for the solver (default: 50).")
+from bracket_city_eval.utils import parse_args # Import the new function
 
-    args = parser.parse_args()
+def main():
+    args = parse_args() # Call the new function
 
     # Configure logging based on parsed argument
     numeric_logging_level = getattr(logging, args.logging_level.upper(), None)
@@ -62,7 +56,6 @@ def main():
         result = {
             "game_completed": final_state["game_won"],
             "number_of_steps": final_state["step_count"],
-            "model_name": "gpt-4o", # Replace with actual model name if available dynamically
             "puzzle_date": args.date_str, # Use args.date_str
             "model_name": args.model_name, # Use args.model_name
             "prompt_tokens": cb.prompt_tokens,

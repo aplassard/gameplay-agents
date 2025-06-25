@@ -4,9 +4,15 @@ from bracket_city_mcp.puzzle_loader import load_game_data_by_date
 
 import logging
 from langgraph.graph import StateGraph, END
-# Removed ChatOpenAI, HumanMessage, os, load_dotenv as they are now in llm_utils
 from llm_utils import call_llm_with_retry
 
+import os
+import uuid # Added for generating unique filenames
+from pathlib import Path # Added for path manipulation
+
+
+# Ensure the parse-errors directory exists
+Path("./parse-errors").mkdir(parents=True, exist_ok=True)
 
 class State(TypedDict):
     game: Game
@@ -102,6 +108,15 @@ def parse_llm_response(llm_response: str):
             clue_id = line.split(":")[1].strip()
         elif line.startswith("answer:"):
             answer = line.split(":")[1].strip()
+
+    if clue_id is None or answer is None:
+        logging.warning(f"Could not parse clue_id or answer from LLM response: {llm_response}")
+        error_filename = f"./parse-errors/{uuid.uuid4()}.txt"
+        with open(error_filename, "w") as f:
+            f.write(llm_response)
+        logging.info(f"Saved unparseable LLM response to {error_filename}")
+        return None, None
+
     return clue_id, answer
 
 def answer_clue_node(state: State):
@@ -110,7 +125,8 @@ def answer_clue_node(state: State):
     logging.debug(f"Attempting to answer clue_id: {clue_id} with answer: {answer}")
 
     if clue_id is None or answer is None:
-        logging.warning(f"Could not parse clue_id or answer from LLM response: {state['llm_response']}. Skipping answer attempt.")
+        # Error message now includes the fact that the response was saved to a file
+        logging.warning(f"Could not parse clue_id or answer from LLM response. Response saved to ./parse-errors/. Skipping answer attempt.")
         # Potentially increment step_count here or handle as an error state depending on desired game logic
         return {"step_count": state["step_count"] + 1, "llm_message": None, "llm_response": None}
 
