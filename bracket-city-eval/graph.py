@@ -152,15 +152,10 @@ def answer_clue_node(state: State):
         logging.error(f"Clue with id '{clue_id}' not found in game state. LLM may have hallucinated a clue_id.")
         return {"step_count": state["step_count"] + 1, "llm_message": None, "llm_response": None}
 
-    try:
-        game_instance.answer_clue(clue_id, answer)
-        clue_after_answer = game_instance.clues.get(clue_id)
-        is_correct = clue_after_answer.completed if clue_after_answer else False # Should exist
-        logging.debug(f"Answered clue_id: {clue_id} with answer: {answer}. Correct: {is_correct}")
-    except Exception as e_answer:
-        logging.error(f"Error occurred while trying to answer clue {clue_id} with '{answer}': {e_answer}")
-        # If answering fails (e.g., invalid answer format for the game logic, though less likely here),
-        # still increment step count and continue.
+    game_instance.answer_clue(clue_id, answer)
+    clue_after_answer = game_instance.clues.get(clue_id)
+    is_correct = clue_after_answer.completed if clue_after_answer else False # Should exist
+    logging.debug(f"Answered clue_id: {clue_id} with answer: {answer}. Correct: {is_correct}")
 
     return {"step_count": state["step_count"] + 1,  "llm_message": None, "llm_response": None}
 
