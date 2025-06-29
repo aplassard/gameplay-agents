@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bracket City Eval</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <h1>Bracket City Eval</h1>
+    <div class="filters">
+        <label for="model-filter">Model:</label>
+        <select id="model-filter" multiple size="5"></select>
+        <label for="date-filter">Date:</label>
+        <select id="date-filter" multiple size="5"></select>
+    </div>
+    <div class="container">
+        <div class="chart-container">
+            <h2>Success Rate by Model</h2>
+            <canvas id="success-rate-chart"></canvas>
+        </div>
+        <div class="chart-container">
+            <h2>Average Steps per Completed Game</h2>
+            <canvas id="avg-steps-chart"></canvas>
+        </div>
+        <div class="chart-container">
+            <h2>Average Run Duration by Model</h2>
+            <canvas id="avg-duration-chart"></canvas>
+        </div>
+        <div class="chart-container">
+            <h2>Average Cost per Completed Game</h2>
+            <canvas id="avg-cost-chart"></canvas>
+        </div>
+        <div class="chart-container">
+            <h2>Token Usage by Model</h2>
+            <canvas id="token-usage-chart"></canvas>
+        </div>
+        <div class="chart-container">
+            <h2>Completion Rate by Date</h2>
+            <canvas id="completion-rate-by-date-chart"></canvas>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
