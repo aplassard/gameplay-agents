@@ -1,178 +1,198 @@
-let allData = [];
-
 async function fetchData() {
     const response = await fetch('data/results.json');
-    allData = await response.json();
-    return allData;
+    const data = await response.json();
+    return data;
 }
 
-function populateFilters(data) {
-    const modelFilter = document.getElementById('model-filter');
-    const dateFilter = document.getElementById('date-filter');
+function aggregateData(allResults) {
+    const aggregatedResults = {};
+    const dailyCompletion = {};
 
-    const models = [...new Set(data.map(d => d.model_name))].sort();
-    const dates = [...new Set(data.map(d => d.puzzle_date))].sort();
+    allResults.forEach(result => {
+        const modelNameFull = result.model_name;
+        const modelProvider = result.model_provider || 'unknown'; // Default to 'unknown' if not present
+        const modelNameShort = result.model_name; // This will be the part after the slash
+        const puzzleDate = result.puzzle_date;
 
-    models.forEach(model => {
-        const option = document.createElement('option');
-        option.value = model;
-        option.textContent = model;
-        modelFilter.appendChild(option);
+        // Aggregate by model
+        if (!aggregatedResults[modelNameFull]) {
+            aggregatedResults[modelNameFull] = {
+                modelProvider: modelProvider,
+                modelName: modelNameShort,
+                totalGames: 0,
+                completedGames: 0,
+                totalSteps: 0,
+                totalDuration: 0,
+                totalCost: 0,
+                totalPromptTokens: 0,
+                totalCompletionTokens: 0
+            };
+        }
+
+        aggregatedResults[modelNameFull].totalGames++;
+        if (result.game_completed) {
+            aggregatedResults[modelNameFull].completedGames++;
+        }
+        aggregatedResults[modelNameFull].totalSteps += result.number_of_steps;
+        
+        if (result.start_time && result.end_time) {
+            aggregatedResults[modelNameFull].totalDuration += (result.end_time - result.start_time);
+        }
+        
+        aggregatedResults[modelNameFull].totalCost += result.total_cost;
+        aggregatedResults[modelNameFull].totalPromptTokens += result.prompt_tokens;
+        aggregatedResults[modelNameFull].totalCompletionTokens += result.completion_tokens;
+
+        // Aggregate by date for completion rate
+        if (!dailyCompletion[puzzleDate]) {
+            dailyCompletion[puzzleDate] = {
+                totalGames: 0,
+                completedGames: 0
+            };
+        }
+        dailyCompletion[puzzleDate].totalGames++;
+        if (result.game_completed) {
+            dailyCompletion[puzzleDate].completedGames++;
+        }
     });
 
-    dates.forEach(date => {
-        const option = document.createElement('option');
-        option.value = date;
-        option.textContent = date;
-        dateFilter.appendChild(option);
-    });
-
-    modelFilter.addEventListener('change', updateCharts);
-    dateFilter.addEventListener('change', updateCharts);
+    return { aggregatedResults, dailyCompletion };
 }
 
-function filterData() {
-    const modelFilter = document.getElementById('model-filter');
-    const dateFilter = document.getElementById('date-filter');
+function renderTable(aggregatedResults) {
+    let tableHTML = '<table>';
+    tableHTML += '<thead><tr><th>Model Provider</th><th>Model Name</th><th>Games Run</th><th>Games Completed</th><th>Success Rate (%)</th><th>Avg Steps</th><th>Avg Duration (s)</th><th>Avg Cost ($)</th><th>Avg Prompt Tokens</th><th>Avg Completion Tokens</th></tr></thead>';
+    tableHTML += '<tbody>';
 
-    const selectedModels = Array.from(modelFilter.selectedOptions).map(option => option.value);
-    const selectedDates = Array.from(dateFilter.selectedOptions).map(option => option.value);
+    for (const modelNameFull in aggregatedResults) {
+        const stats = aggregatedResults[modelNameFull];
+        const successRate = (stats.completedGames / stats.totalGames) * 100 || 0;
+        const avgSteps = stats.totalSteps / stats.totalGames || 0;
+        const avgDuration = stats.totalDuration / stats.totalGames || 0;
+        const avgCost = stats.totalCost / stats.totalGames || 0;
+        const avgPromptTokens = stats.totalPromptTokens / stats.totalGames || 0;
+        const avgCompletionTokens = stats.totalCompletionTokens / stats.totalGames || 0;
 
-    let filtered = allData;
-
-    if (selectedModels.length > 0) {
-        filtered = filtered.filter(d => selectedModels.includes(d.model_name));
+        tableHTML += `
+            <tr>
+                <td>${stats.modelProvider}</td>
+                <td>${stats.modelName}</td>
+                <td>${stats.totalGames}</td>
+                <td>${stats.completedGames}</td>
+                <td>${successRate.toFixed(2)}</td>
+                <td>${avgSteps.toFixed(2)}</td>
+                <td>${avgDuration.toFixed(2)}</td>
+                <td>${avgCost.toFixed(4)}</td>
+                <td>${avgPromptTokens.toFixed(0)}</td>
+                <td>${avgCompletionTokens.toFixed(0)}</td>
+            </tr>
+        `;
     }
 
-    if (selectedDates.length > 0) {
-        filtered = filtered.filter(d => selectedDates.includes(d.puzzle_date));
-    }
-
-    return filtered;
+    tableHTML += '</tbody></table>';
+    document.getElementById('results-table').innerHTML = tableHTML;
 }
 
-function updateCharts() {
-    const filteredData = filterData();
-    createCharts(filteredData);
-}
-
-function createCharts(data) {
-    const models = [...new Set(data.map(d => d.model_name))];
-
-    // Success Rate
-    const successRateData = models.map(model => {
-        const modelData = data.filter(d => d.model_name === model);
-        const completed = modelData.filter(d => d.game_completed).length;
-        return (completed / modelData.length) * 100;
+function renderDailyCompletionGraph(dailyCompletion) {
+    const dates = Object.keys(dailyCompletion).sort();
+    const completionRates = dates.map(date => {
+        const dailyStats = dailyCompletion[date];
+        return (dailyStats.completedGames / dailyStats.totalGames) * 100 || 0;
     });
 
-    const successRateTrace = {
-        x: models,
-        y: successRateData,
-        type: 'bar',
-        marker: { color: 'rgba(75, 192, 192, 0.6)' }
-    };
-    const successRateLayout = { title: 'Success Rate by Model', yaxis: { title: 'Success Rate (%)' } };
-    Plotly.newPlot('success-rate-chart', [successRateTrace], successRateLayout);
-
-    // Average Steps
-    const avgStepsData = models.map(model => {
-        const modelData = data.filter(d => d.model_name === model && d.game_completed);
-        const totalSteps = modelData.reduce((sum, d) => sum + d.number_of_steps, 0);
-        return totalSteps / modelData.length;
-    });
-
-    const avgStepsTrace = {
-        x: models,
-        y: avgStepsData,
-        type: 'bar',
-        marker: { color: 'rgba(255, 159, 64, 0.6)' }
-    };
-    const avgStepsLayout = { title: 'Average Steps per Completed Game', yaxis: { title: 'Average Steps' } };
-    Plotly.newPlot('avg-steps-chart', [avgStepsTrace], avgStepsLayout);
-
-    // Average Duration
-    const avgDurationData = models.map(model => {
-        const modelData = data.filter(d => d.model_name === model);
-        const totalDuration = modelData.reduce((sum, d) => sum + (d.end_time - d.start_time), 0);
-        return totalDuration / modelData.length;
-    });
-
-    const avgDurationTrace = {
-        x: models,
-        y: avgDurationData,
-        type: 'bar',
-        marker: { color: 'rgba(153, 102, 255, 0.6)' }
-    };
-    const avgDurationLayout = { title: 'Average Run Duration by Model', yaxis: { title: 'Average Duration (s)' } };
-    Plotly.newPlot('avg-duration-chart', [avgDurationTrace], avgDurationLayout);
-
-    // Average Cost
-    const avgCostData = models.map(model => {
-        const modelData = data.filter(d => d.model_name === model && d.game_completed);
-        const totalCost = modelData.reduce((sum, d) => sum + d.total_cost, 0);
-        return totalCost / modelData.length;
-    });
-
-    const avgCostTrace = {
-        x: models,
-        y: avgCostData,
-        type: 'bar',
-        marker: { color: 'rgba(255, 99, 132, 0.6)' }
-    };
-    const avgCostLayout = { title: 'Average Cost per Completed Game', yaxis: { title: 'Average Cost ($)' } };
-    Plotly.newPlot('avg-cost-chart', [avgCostTrace], avgCostLayout);
-
-    // Token Usage
-    const tokenUsagePromptData = models.map(model => {
-        const modelData = data.filter(d => d.model_name === model);
-        return modelData.reduce((sum, d) => sum + d.prompt_tokens, 0) / modelData.length;
-    });
-    const tokenUsageCompletionData = models.map(model => {
-        const modelData = data.filter(d => d.model_name === model);
-        return modelData.reduce((sum, d) => sum + d.completion_tokens, 0) / modelData.length;
-    });
-
-    const tokenUsageTracePrompt = {
-        x: models,
-        y: tokenUsagePromptData,
-        name: 'Average Prompt Tokens',
-        type: 'bar',
-        marker: { color: 'rgba(54, 162, 235, 0.6)' }
-    };
-    const tokenUsageTraceCompletion = {
-        x: models,
-        y: tokenUsageCompletionData,
-        name: 'Average Completion Tokens',
-        type: 'bar',
-        marker: { color: 'rgba(255, 206, 86, 0.6)' }
-    };
-    const tokenUsageLayout = { barmode: 'group', title: 'Token Usage by Model', yaxis: { title: 'Average Tokens' } };
-    Plotly.newPlot('token-usage-chart', [tokenUsageTracePrompt, tokenUsageTraceCompletion], tokenUsageLayout);
-
-    // Completion Rate by Date
-    const dates = [...new Set(data.map(d => d.puzzle_date))].sort();
-    const completionRateByDateData = dates.map(date => {
-        const dateData = data.filter(d => d.puzzle_date === date);
-        const completed = dateData.filter(d => d.game_completed).length;
-        return (completed / dateData.length) * 100;
-    });
-
-    const completionRateByDateTrace = {
+    const trace = {
         x: dates,
-        y: completionRateByDateData,
+        y: completionRates,
         mode: 'lines+markers',
         type: 'scatter',
-        line: { color: 'rgba(75, 192, 192, 1)' }
+        name: 'Completion Rate',
+        line: { color: '#17BECF' }
     };
-    const completionRateByDateLayout = { title: 'Completion Rate by Date', yaxis: { title: 'Completion Rate (%)' } };
-    Plotly.newPlot('completion-rate-by-date-chart', [completionRateByDateTrace], completionRateByDateLayout);
+
+    const layout = {
+        title: 'Daily Completion Rate',
+        xaxis: { title: 'Date' },
+        yaxis: { title: 'Completion Rate (%)' }
+    };
+
+    Plotly.newPlot('daily-completion-graph', [trace], layout);
+}
+
+function renderCompletionTokensVsSuccessRateGraph(aggregatedResults) {
+    const scatterX = [];
+    const scatterY = [];
+    const scatterText = [];
+
+    for (const modelNameFull in aggregatedResults) {
+        const stats = aggregatedResults[modelNameFull];
+        const successRate = (stats.completedGames / stats.totalGames) * 100 || 0;
+        const avgCompletionTokens = stats.totalCompletionTokens / stats.totalGames || 0;
+
+        scatterX.push(avgCompletionTokens);
+        scatterY.push(successRate);
+        scatterText.push(`${stats.modelProvider}/${stats.modelName}`);
+    }
+
+    const scatterTrace = {
+        x: scatterX,
+        y: scatterY,
+        mode: 'markers+text',
+        type: 'scatter',
+        text: scatterText,
+        textposition: 'top center',
+        marker: { size: 10 }
+    };
+
+    const scatterLayout = {
+        title: 'Completion Rate vs. Average Completion Tokens by Model',
+        xaxis: { title: 'Average Completion Tokens', type: 'log' },
+        yaxis: { title: 'Success Rate (%)' }
+    };
+
+    Plotly.newPlot('completion-tokens-vs-success-rate-graph', [scatterTrace], scatterLayout);
+}
+
+function renderDurationVsCompletionRateGraph(aggregatedResults) {
+    const scatterX = [];
+    const scatterY = [];
+    const scatterText = [];
+
+    for (const modelNameFull in aggregatedResults) {
+        const stats = aggregatedResults[modelNameFull];
+        const successRate = (stats.completedGames / stats.totalGames) * 100 || 0;
+        const avgDuration = stats.totalDuration / stats.totalGames || 0;
+
+        scatterX.push(avgDuration);
+        scatterY.push(successRate);
+        scatterText.push(`${stats.modelProvider}/${stats.modelName}`);
+    }
+
+    const scatterTrace = {
+        x: scatterX,
+        y: scatterY,
+        mode: 'markers+text',
+        type: 'scatter',
+        text: scatterText,
+        textposition: 'top center',
+        marker: { size: 10 }
+    };
+
+    const scatterLayout = {
+        title: 'Duration vs. Completion Rate by Model',
+        xaxis: { title: 'Average Duration (s)' },
+        yaxis: { title: 'Success Rate (%)' }
+    };
+
+    Plotly.newPlot('duration-vs-completion-rate-graph', [scatterTrace], scatterLayout);
 }
 
 async function init() {
-    await fetchData();
-    populateFilters(allData);
-    updateCharts();
+    const allResults = await fetchData();
+    const { aggregatedResults, dailyCompletion } = aggregateData(allResults);
+    renderTable(aggregatedResults);
+    renderDailyCompletionGraph(dailyCompletion);
+    renderCompletionTokensVsSuccessRateGraph(aggregatedResults);
+    renderDurationVsCompletionRateGraph(aggregatedResults);
 }
 
 init();
