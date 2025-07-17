@@ -14,3 +14,8 @@ for filename in os.listdir("results"):
 
 with open("webapp/data/results.json", "w") as f:
     json.dump(results, f)
+
+
+import pandas as pd
+df = pd.DataFrame(results)
+df.to_csv("results.csv")
