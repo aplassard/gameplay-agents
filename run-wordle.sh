@@ -18,6 +18,6 @@ WORDS=$(echo $2 | tr "," " ")
 for model in $MODELS; do
   for word in $WORDS; do
     echo "Running Wordle with model: $model and word: $word"
-    uv run python -m wordle_agent.main --model $model --word $word
+    uv run python -m wordle_agent.main --model $model --word $word --turns 100
   done
 done
