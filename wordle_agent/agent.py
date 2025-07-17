@@ -19,7 +19,7 @@ class WordleAgent:
             model_name=self.llm_name,
         )
 
-        final_state = app.invoke(initial_state)
+        final_state = app.invoke(initial_state, {"recursion_limit": 1000})
 
         if final_state["game_won"]:
             print(f"Solved in {final_state['step_count']} turns!")
