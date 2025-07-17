@@ -91,12 +91,12 @@ def take_turn_node(state: State):
     try:
         state["game"].guess_word(guess)
         logging.info(f"Guess: {guess} -> {"".join(map_color_to_char(color) for color in state["game"].guesses[-1].colors)}")
+        return {"step_count": state["step_count"] + 1}
     except ValueError as e:
         logging.warning(f"Invalid guess: {e}.")
         return {"step_count": state["step_count"] + 1}
 
     return {
-        "step_count": state["step_count"] + 1,
         "llm_message": None,
         "llm_response": None,
     }
