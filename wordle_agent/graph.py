@@ -4,7 +4,8 @@ from langgraph.graph import StateGraph, END
 import os
 import logging
 import re
-from bracket_city_eval.llm_utils import call_llm_with_retry, heal_llm_output
+from llmutils.llm_with_retry import call_llm_with_retry
+from llmutils.self_healing import heal_llm_output
 
 class State(TypedDict):
     game: wordle.Wordle
@@ -74,7 +75,11 @@ def take_turn_node(state: State):
     if not guess:
         logging.warning(f"Could not parse guess from LLM response: {state['llm_response']}. Attempting to heal.")
         try:
-            healed_response = heal_llm_output(state["llm_response"])
+            healed_response = heal_llm_output(
+                broken_text=state["llm_response"],
+                expected_format="guess: <five letter word>",
+                model_name=state["model_name"]
+            )
             guess = parse_guess(healed_response)
             if not guess:
                 logging.error(f"Failed to heal and parse guess from response: {healed_response}")
