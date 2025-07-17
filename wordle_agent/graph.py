@@ -3,6 +3,7 @@ from wordle import wordle
 from langgraph.graph import StateGraph, END
 import os
 import logging
+import re
 from bracket_city_eval.llm_utils import call_llm_with_retry, heal_llm_output
 
 class State(TypedDict):
@@ -62,21 +63,32 @@ def call_llm_node(state: State):
         logging.error(f"LLM call failed after multiple retries: {e_call}")
         return {"llm_response": ""}
 
+def parse_guess(response: str) -> str | None:
+    match = re.search(r"guess:\s*(\w+)", response, re.IGNORECASE)
+    if match:
+        return match.group(1).lower()
+    return None
+
 def take_turn_node(state: State):
-    guess = state["llm_response"].strip().lower()
+    guess = parse_guess(state["llm_response"])
+    if not guess:
+        logging.warning(f"Could not parse guess from LLM response: {state['llm_response']}. Attempting to heal.")
+        try:
+            healed_response = heal_llm_output(state["llm_response"])
+            guess = parse_guess(healed_response)
+            if not guess:
+                logging.error(f"Failed to heal and parse guess from response: {healed_response}")
+                return {"step_count": state["step_count"] + 1}
+        except Exception as e_heal:
+            logging.error(f"Failed to heal and make a guess: {e_heal}")
+            return {"step_count": state["step_count"] + 1}
+
     try:
         state["game"].guess_word(guess)
         logging.info(f"Guess: {guess} -> {"".join(map_color_to_char(color) for color in state["game"].guesses[-1].colors)}")
     except ValueError as e:
-        logging.warning(f"Invalid guess: {e}. Attempting to heal.")
-        try:
-            healed_guess = heal_llm_output(state["llm_response"])
-            state["game"].guess_word(healed_guess)
-            logging.info(f"Healed Guess: {healed_guess} -> {"".join(map_color_to_char(color) for color in state["game"].guesses[-1].colors)}")
-        except Exception as e_heal:
-            logging.error(f"Failed to heal and make a guess: {e_heal}")
-            # Move on to the next turn if healing fails
-            return {"step_count": state["step_count"] + 1}
+        logging.warning(f"Invalid guess: {e}.")
+        return {"step_count": state["step_count"] + 1}
 
     return {
         "step_count": state["step_count"] + 1,
