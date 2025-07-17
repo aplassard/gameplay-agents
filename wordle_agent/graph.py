@@ -66,11 +66,13 @@ def take_turn_node(state: State):
     guess = state["llm_response"].strip().lower()
     try:
         state["game"].guess_word(guess)
+        logging.info(f"Guess: {guess} -> {"".join(map_color_to_char(color) for color in state["game"].guesses[-1].colors)}")
     except ValueError as e:
         logging.warning(f"Invalid guess: {e}. Attempting to heal.")
         try:
             healed_guess = heal_llm_output(state["llm_response"])
             state["game"].guess_word(healed_guess)
+            logging.info(f"Healed Guess: {healed_guess} -> {"".join(map_color_to_char(color) for color in state["game"].guesses[-1].colors)}")
         except Exception as e_heal:
             logging.error(f"Failed to heal and make a guess: {e_heal}")
             # Move on to the next turn if healing fails
