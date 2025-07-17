@@ -1,0 +1,33 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bracket City</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Bracket City</h1>
+    <div id="game-controls">
+        <input type="text" id="date-input" placeholder="Enter date (YYYY-MM-DD)">
+        <input type="text" id="model-input" placeholder="Enter model name">
+        <button id="start-button">Start Game</button>
+        <button id="pause-button" style="display: none;">Pause</button>
+    </div>
+
+    <div id="game-container">
+        <div id="game-and-response">
+            <div id="game-state"></div>
+            <div id="llm-response"></div>
+        </div>
+        <div id="llm-output">
+            <h2>LLM Output</h2>
+            <div id="llm-prompt"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+
+body {
+    font-family: sans-serif;
+    margin: 20px;
+}
+
+#game-controls {
+    margin-bottom: 20px;
+}
+
+#game-container {
+    display: flex;
+    gap: 20px;
+}
+
+#game-and-response {
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+#game-state, #llm-response {
+    width: 100%;
+}
+
+#llm-output {
+    width: 50%;
+}
+
+pre {
+    background-color: #f4f4f4;
+    padding: 10px;
+    border-radius: 5px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+h2, h3 {
+    margin-top: 0;
+}
