@@ -11,6 +11,7 @@ class State(TypedDict):
     game: wordle.Wordle
     llm_message: str | None
     llm_response: str | None
+    llm_responses_history: list[str]
     step_count: int
     max_steps: int
     game_over: bool
@@ -59,10 +60,12 @@ def call_llm_node(state: State):
             prompt_message=state["llm_message"]
         )
         logging.debug(f"LLM Response before healing: {response_content}")
-        return {"llm_response": response_content}
+        history = state.get("llm_responses_history", [])
+        history.append(response_content)
+        return {"llm_responses_history": history, "llm_response": response_content}
     except Exception as e_call:
         logging.error(f"LLM call failed after multiple retries: {e_call}")
-        return {"llm_response": ""}
+        return {"llm_response": "", "llm_responses_history": state.get("llm_responses_history", [])}
 
 def parse_guess(response: str) -> str | None:
     match = re.search(r"guess:\s*(\w+)", response, re.IGNORECASE)
